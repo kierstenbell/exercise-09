@@ -368,7 +368,9 @@ quantitative variable.</li>
 </ul>
 <pre class="r"><code># Set up libraries
 library(tidyverse)
-library(skimr)</code></pre>
+library(skimr)
+library(tidyr)
+library(broom)</code></pre>
 <pre class="r"><code>f &lt;- &quot;https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/Street_et_al_2017.csv&quot;
 d &lt;- read_csv(f, col_names = TRUE)</code></pre>
 <pre><code>## Rows: 301 Columns: 13
@@ -694,7 +696,7 @@ group size</li>
 # (B1 &lt;- cor(d$ECV, d$Group_size, use = &quot;complete.obs&quot;) * (sd(d$ECV, na.rm = TRUE)/sd(d$Group_size, na.rm = TRUE)))
 
 # Solve for Beta0, intercept, by hand 
-# (B0 &lt;- mean(d$Group_size, na.rm = TRUE) - B1*mean(d$ECV, na.rm = TRUE)) 
+# (B0 &lt;- mean(d$ECV, na.rm = TRUE) - B1*mean(d$Group_size, na.rm = TRUE)) 
 
 # Removing rows in ECV and Group_size that are not complete
 ECV_GS_noNA &lt;- d[complete.cases(d[ , c(&#39;ECV&#39;, &#39;Group_size&#39;)]), ]
@@ -726,6 +728,40 @@ Group_size &lt;- ECV_GS_noNA$Group_size
 </div>
 <div id="step-5" class="section level3">
 <h3>Step 5</h3>
+<ul>
+<li>Repeat the analysis above for three different major radiations of
+primates - “catarrhines”, “platyrrhines”, and “strepsirhines”)
+separately. These are stored in the variable Taxonomic_group. Do your
+regression coefficients differ among groups? How might you determine
+this?</li>
+<li>The intercepts (B0) vary between the groups, but the slopes (B1) are
+more similar.</li>
+</ul>
+<pre class="r"><code>cat &lt;- filter(ECV_GS_noNA, Taxonomic_group == &quot;Catarrhini&quot;)
+cat_lm &lt;- lm(ECV ~ Group_size, data = cat)
+plat &lt;- filter(ECV_GS_noNA, Taxonomic_group == &quot;Platyrrhini&quot;)
+plat_lm &lt;- lm(ECV ~ Group_size, data = plat)
+strep &lt;- filter(ECV_GS_noNA, Taxonomic_group == &quot;Strepsirhini&quot;)
+strep_lm &lt;- lm(ECV ~ Group_size, data = strep)
+
+# Combine results into a single data frame
+# from {tidyr} and {broom}
+cat_lm &lt;- tidy(cat_lm) %&gt;%
+  mutate(Primate = &quot;Catarrhini&quot;)
+plat_lm &lt;- tidy(plat_lm) %&gt;%
+  mutate(Primate = &quot;Platyrrhini&quot;)
+strep_lm &lt;- tidy (strep_lm) %&gt;%
+  mutate(Primate = &quot;Strepsirhini&quot;)
+(primate_lm &lt;- bind_rows(cat_lm, plat_lm, strep_lm, .id = &quot;Model&quot;))</code></pre>
+<pre><code>## # A tibble: 6 × 7
+##   Model term        estimate std.error statistic     p.value Primate     
+##   &lt;chr&gt; &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;       &lt;dbl&gt; &lt;chr&gt;       
+## 1 1     (Intercept)    83.4     14.9        5.59 0.000000438 Catarrhini  
+## 2 1     Group_size      1.15     0.579      1.98 0.0518      Catarrhini  
+## 3 2     (Intercept)    16.2      7.39       2.19 0.0356      Platyrrhini 
+## 4 2     Group_size      1.97     0.455      4.32 0.000136    Platyrrhini 
+## 5 3     (Intercept)     8.18     2.14       3.83 0.000404    Strepsirhini
+## 6 3     Group_size      1.84     0.473      3.89 0.000332    Strepsirhini</code></pre>
 </div>
 <div id="step-6" class="section level3">
 <h3>Step 6</h3>

@@ -18,6 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # Set up libraries
 library(tidyverse)
 library(skimr)
+library(tidyr)
+library(broom)
 ```
 
 ```{r, 1}
@@ -62,7 +64,7 @@ plot(data = d, ECV ~ Repro_lifespan, main = "Reproductive Lifespan", ylab = "Bra
 # (B1 <- cor(d$ECV, d$Group_size, use = "complete.obs") * (sd(d$ECV, na.rm = TRUE)/sd(d$Group_size, na.rm = TRUE)))
 
 # Solve for Beta0, intercept, by hand 
-# (B0 <- mean(d$Group_size, na.rm = TRUE) - B1*mean(d$ECV, na.rm = TRUE)) 
+# (B0 <- mean(d$ECV, na.rm = TRUE) - B1*mean(d$Group_size, na.rm = TRUE)) 
 
 # Removing rows in ECV and Group_size that are not complete
 ECV_GS_noNA <- d[complete.cases(d[ , c('ECV', 'Group_size')]), ]
@@ -88,9 +90,27 @@ Group_size <- ECV_GS_noNA$Group_size
 
 
 ### Step 5
+- Repeat the analysis above for three different major radiations of primates - “catarrhines”, “platyrrhines”, and “strepsirhines”) separately. These are stored in the variable Taxonomic_group. Do your regression coefficients differ among groups? How might you determine this?
+- The intercepts (B0) vary between the groups, but the slopes (B1) are more similar. 
 
 
 ```{r, 5}
+cat <- filter(ECV_GS_noNA, Taxonomic_group == "Catarrhini")
+cat_lm <- lm(ECV ~ Group_size, data = cat)
+plat <- filter(ECV_GS_noNA, Taxonomic_group == "Platyrrhini")
+plat_lm <- lm(ECV ~ Group_size, data = plat)
+strep <- filter(ECV_GS_noNA, Taxonomic_group == "Strepsirhini")
+strep_lm <- lm(ECV ~ Group_size, data = strep)
+
+# Combine results into a single data frame
+# from {tidyr} and {broom}
+cat_lm <- tidy(cat_lm) %>%
+  mutate(Primate = "Catarrhini")
+plat_lm <- tidy(plat_lm) %>%
+  mutate(Primate = "Platyrrhini")
+strep_lm <- tidy (strep_lm) %>%
+  mutate(Primate = "Strepsirhini")
+(primate_lm <- bind_rows(cat_lm, plat_lm, strep_lm, .id = "Model"))
 
 ```
 
