@@ -370,7 +370,8 @@ quantitative variable.</li>
 library(tidyverse)
 library(skimr)
 library(tidyr)
-library(broom)</code></pre>
+library(broom)
+library(infer)</code></pre>
 <pre class="r"><code>f &lt;- &quot;https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/Street_et_al_2017.csv&quot;
 d &lt;- read_csv(f, col_names = TRUE)</code></pre>
 <pre><code>## Rows: 301 Columns: 13
@@ -717,7 +718,7 @@ Group_size &lt;- ECV_GS_noNA$Group_size
 <ul>
 <li>Confirm that you get the same results using the lm() function</li>
 </ul>
-<pre class="r"><code>(ECV_GS &lt;- lm(ECV ~ Group_size, data = d))</code></pre>
+<pre class="r"><code>(ECV_GS_lm &lt;- lm(ECV ~ Group_size, data = d))</code></pre>
 <pre><code>## 
 ## Call:
 ## lm(formula = ECV ~ Group_size, data = d)
@@ -765,12 +766,145 @@ strep_lm &lt;- tidy (strep_lm) %&gt;%
 </div>
 <div id="step-6" class="section level3">
 <h3>Step 6</h3>
+<ul>
+<li>For your first regression of ECV on social group size, calculate the
+standard error for the slope coefficient, the 95% CI, and the p value
+associated with this coefficient by hand. Also extract this same
+information from the results of running the lm() function.</li>
+</ul>
+<pre class="r"><code># Summary 
+summary &lt;- tidy(ECV_GS_lm)
+
+# standard error 
+summary$calc.statistic &lt;- (summary$estimate - 0)/summary$std.error
+
+# 95% confidence interval 
+alpha &lt;- 0.05
+lower &lt;- summary$estimate - qt(1 - alpha/2, df = nrow(ECV_GS_noNA) - 2) *summary$std.error
+upper &lt;- summary$estimate + qt(1 - alpha/2, df = nrow(ECV_GS_noNA) - 2) *summary$std.error
+CI &lt;- cbind(lower, upper)
+rownames(CI) &lt;- c(&quot;(Intercept)&quot;, &quot;Group size&quot;)
+colnames(CI) &lt;- c(paste0(as.character(alpha/2 * 100), &quot; %&quot;), paste0(as.character((1 -
+    alpha/2) * 100), &quot; %&quot;))
+CI</code></pre>
+<pre><code>##                 2.5 %    97.5 %
+## (Intercept) 16.926896 43.786153
+## Group size   1.769874  3.156269</code></pre>
+<pre class="r"><code># p value
+summary$calc.p.value &lt;- 2 * pt(summary$calc.statistic, df = nrow(ECV_GS_noNA) - 2, lower.tail = FALSE)
+
+# print summary
+summary</code></pre>
+<pre><code>## # A tibble: 2 × 7
+##   term        estimate std.error statistic  p.value calc.statistic calc.p.value
+##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;          &lt;dbl&gt;        &lt;dbl&gt;
+## 1 (Intercept)    30.4      6.80       4.47 1.56e- 5           4.47     1.56e- 5
+## 2 Group_size      2.46     0.351      7.02 7.26e-11           7.02     7.26e-11</code></pre>
+<pre class="r"><code># Using lm() function
+# Completed in step 4
+summary(ECV_GS_lm)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = ECV ~ Group_size, data = d)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -92.05 -29.25 -15.14  13.07 445.28 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  30.3565     6.7963   4.467 1.56e-05 ***
+## Group_size    2.4631     0.3508   7.021 7.26e-11 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 60.31 on 149 degrees of freedom
+##   (150 observations deleted due to missingness)
+## Multiple R-squared:  0.2486, Adjusted R-squared:  0.2436 
+## F-statistic:  49.3 on 1 and 149 DF,  p-value: 7.259e-11</code></pre>
+<pre class="r"><code>glance(ECV_GS_lm)</code></pre>
+<pre><code>## # A tibble: 1 × 12
+##   r.squared adj.r.squared sigma statistic  p.value    df logLik   AIC   BIC
+##       &lt;dbl&gt;         &lt;dbl&gt; &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     0.249         0.244  60.3      49.3 7.26e-11     1  -832. 1671. 1680.
+## # ℹ 3 more variables: deviance &lt;dbl&gt;, df.residual &lt;int&gt;, nobs &lt;int&gt;</code></pre>
 </div>
 <div id="step-7" class="section level3">
 <h3>Step 7</h3>
+<ul>
+<li>Use a permutation approach with 1000 permutations to generate a null
+sampling distribution for the slope coefficient. What is it that you
+need to permute? What is the p value associated with your original slope
+coefficient? You can use either the percentile method (i.e., using
+quantiles from the actual permutation-based null sampling distribution)
+or a theory-based method (i.e., using the standard deviation of the
+permutation-based null sampling distribution as the estimate of the
+standard error, along with a normal or t distribution), or both, to
+calculate this p value.</li>
+</ul>
+<pre class="r"><code># define variables
+alpha &lt;- 0.05
+confidence_level &lt;- 1 - alpha
+p_lower &lt;- alpha/2
+p_upper &lt;- 1 - (alpha/2)
+degrees_of_freedom &lt;- nrow(ECV_GS_noNA) - 2
+critical_value &lt;- qt(p_upper, df = degrees_of_freedom) # qt() is the student t distribution
+
+# original slope
+original.slope &lt;- lm(data = ECV_GS_noNA, ECV ~ Group_size) %&gt;%
+  # tidy the model and add the CI based on the t distribution 
+  tidy(conf.int = TRUE, conf.level = confidence_level) %&gt;%
+  #alternative: mutate(lower = estimate - std.error * critical_value, upper = estimate + std.error * critical_value)
+  filter(term == &quot;Group_size&quot;)
+original.slope</code></pre>
+<pre><code>## # A tibble: 1 × 7
+##   term       estimate std.error statistic  p.value conf.low conf.high
+##   &lt;chr&gt;         &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+## 1 Group_size     2.46     0.351      7.02 7.26e-11     1.77      3.16</code></pre>
+<pre class="r"><code># null distribution 
+permuted.slope &lt;- ECV_GS_noNA %&gt;%
+  # specify model 
+  specify(ECV ~ Group_size) %&gt;%
+  # use a null hypothesis of independence
+  hypothesize(null = &quot;independence&quot;) %&gt;%
+  # generate permutation replicates
+  generate(reps = 1000, type = &quot;permute&quot;) %&gt;%
+  # calculate the slope statistic
+  calculate(stat = &quot;slope&quot;) # from {infer}
+
+# create confidence intervals
+permuted.slope.summary &lt;- permuted.slope %&gt;%
+  # summarize the mean, t distribution based CI, and quantile-based CI
+  summarize(
+    # mean of stat
+    estimate = mean(stat), # should be very close to ZERO
+    # std error of stat
+    std.error = sd(stat),
+    # calculate the CI based on the SE and t distribution
+    # could use 0 in place of estimate here...
+    lower = estimate - std.error * critical_value,
+    upper = estimate + std.error * critical_value,
+    # calculate the CI based on the quantile (percentile) method
+    perm.lower = quantile(stat, p_lower),
+    perm.upper = quantile(stat, p_upper)
+  )
+
+# show summary of permuted sampling distribution
+permuted.slope.summary</code></pre>
+<pre><code>## # A tibble: 1 × 6
+##   estimate std.error  lower upper perm.lower perm.upper
+##      &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
+## 1  0.00917     0.410 -0.801 0.819     -0.680      0.885</code></pre>
 </div>
 <div id="step-8" class="section level3">
 <h3>Step 8</h3>
+<ul>
+<li>Use bootstrapping to generate a 95% CI for your estimate of the
+slope coefficient using both the percentile method and the theory-based
+method (i.e., using on the standard deviation of the bootstrapped
+sampling distribution as an estimate of the standard error). Do these
+CIs suggest that your slope coefficient is different from zero?</li>
+</ul>
 </div>
 
 

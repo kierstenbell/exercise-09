@@ -20,6 +20,7 @@ library(tidyverse)
 library(skimr)
 library(tidyr)
 library(broom)
+library(infer)
 ```
 
 ```{r, 1}
@@ -85,7 +86,7 @@ Group_size <- ECV_GS_noNA$Group_size
 - Confirm that you get the same results using the lm() function 
 
 ```{r, 4}
-(ECV_GS <- lm(ECV ~ Group_size, data = d))
+(ECV_GS_lm <- lm(ECV ~ Group_size, data = d))
 ```
 
 
@@ -115,20 +116,91 @@ strep_lm <- tidy (strep_lm) %>%
 ```
 
 ### Step 6
-
+- For your first regression of ECV on social group size, calculate the standard error for the slope coefficient, the 95% CI, and the p value associated with this coefficient by hand. Also extract this same information from the results of running the lm() function.
 
 ```{r, 6}
+# Summary 
+summary <- tidy(ECV_GS_lm)
 
+# standard error 
+summary$calc.statistic <- (summary$estimate - 0)/summary$std.error
+
+# 95% confidence interval 
+alpha <- 0.05
+lower <- summary$estimate - qt(1 - alpha/2, df = nrow(ECV_GS_noNA) - 2) *summary$std.error
+upper <- summary$estimate + qt(1 - alpha/2, df = nrow(ECV_GS_noNA) - 2) *summary$std.error
+CI <- cbind(lower, upper)
+rownames(CI) <- c("(Intercept)", "Group size")
+colnames(CI) <- c(paste0(as.character(alpha/2 * 100), " %"), paste0(as.character((1 -
+    alpha/2) * 100), " %"))
+CI
+
+# p value
+summary$calc.p.value <- 2 * pt(summary$calc.statistic, df = nrow(ECV_GS_noNA) - 2, lower.tail = FALSE)
+
+# print summary
+summary
+
+# Using lm() function
+# Completed in step 4
+summary(ECV_GS_lm)
+glance(ECV_GS_lm)
 ```
 
 ### Step 7
-
+- Use a permutation approach with 1000 permutations to generate a null sampling distribution for the slope coefficient. What is it that you need to permute? What is the p value associated with your original slope coefficient? You can use either the percentile method (i.e., using quantiles from the actual permutation-based null sampling distribution) or a theory-based method (i.e., using the standard deviation of the permutation-based null sampling distribution as the estimate of the standard error, along with a normal or t distribution), or both, to calculate this p value.
 
 ```{r, 7}
+# define variables
+alpha <- 0.05
+confidence_level <- 1 - alpha
+p_lower <- alpha/2
+p_upper <- 1 - (alpha/2)
+degrees_of_freedom <- nrow(ECV_GS_noNA) - 2
+critical_value <- qt(p_upper, df = degrees_of_freedom) # qt() is the student t distribution
 
+# original slope
+original.slope <- lm(data = ECV_GS_noNA, ECV ~ Group_size) %>%
+  # tidy the model and add the CI based on the t distribution 
+  tidy(conf.int = TRUE, conf.level = confidence_level) %>%
+  #alternative: mutate(lower = estimate - std.error * critical_value, upper = estimate + std.error * critical_value)
+  filter(term == "Group_size")
+original.slope
+
+# null distribution 
+permuted.slope <- ECV_GS_noNA %>%
+  # specify model 
+  specify(ECV ~ Group_size) %>%
+  # use a null hypothesis of independence
+  hypothesize(null = "independence") %>%
+  # generate permutation replicates
+  generate(reps = 1000, type = "permute") %>%
+  # calculate the slope statistic
+  calculate(stat = "slope") # from {infer}
+
+# create confidence intervals
+permuted.slope.summary <- permuted.slope %>%
+  # summarize the mean, t distribution based CI, and quantile-based CI
+  summarize(
+    # mean of stat
+    estimate = mean(stat), # should be very close to ZERO
+    # std error of stat
+    std.error = sd(stat),
+    # calculate the CI based on the SE and t distribution
+    # could use 0 in place of estimate here...
+    lower = estimate - std.error * critical_value,
+    upper = estimate + std.error * critical_value,
+    # calculate the CI based on the quantile (percentile) method
+    perm.lower = quantile(stat, p_lower),
+    perm.upper = quantile(stat, p_upper)
+  )
+
+# show summary of permuted sampling distribution
+permuted.slope.summary
 ```
 
 ### Step 8 
+- Use bootstrapping to generate a 95% CI for your estimate of the slope coefficient using both the percentile method and the theory-based method (i.e., using on the standard deviation of the bootstrapped sampling distribution as an estimate of the standard error). Do these CIs suggest that your slope coefficient is different from zero?
 
 ```{r, 8}
 
