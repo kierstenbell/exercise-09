@@ -684,22 +684,45 @@ plot(data = d, ECV ~ Repro_lifespan, main = &quot;Reproductive Lifespan&quot;, y
 </div>
 <div id="step-3" class="section level3">
 <h3>Step 3</h3>
-<p>-Derive by hand the ordinary least squares regression coefficients
+<ul>
+<li>Derive by hand the ordinary least squares regression coefficients
 <span class="math inline">\(\beta1\)</span> and <span class="math inline">\(\beta0\)</span> for ECV as a function of social
-group size</p>
-<pre class="r"><code># Renaming variables for easier pulling
-ECV &lt;- d$ECV
-Group_size &lt;- d$Group_size
+group size</li>
+</ul>
+<pre class="r"><code># I do not understand why this yields diff results; B1 = 2.718; B0 = -172.906
+# Solve for Beta1, slope, by hand
+# (B1 &lt;- cor(d$ECV, d$Group_size, use = &quot;complete.obs&quot;) * (sd(d$ECV, na.rm = TRUE)/sd(d$Group_size, na.rm = TRUE)))
 
-# Solve for Beta1 by hand
-(B1 &lt;- cor(ECV, Group_size, use = &quot;complete.obs&quot;) * (sd(ECV, na.rm = TRUE)/sd(Group_size, na.rm = TRUE)))</code></pre>
-<pre><code>## [1] 2.718068</code></pre>
-<pre class="r"><code># Solve for Beta0 by hand 
-(B0 &lt;- mean(Group_size, na.rm = TRUE) - B1*mean(ECV, na.rm = TRUE)) </code></pre>
-<pre><code>## [1] -172.9061</code></pre>
+# Solve for Beta0, intercept, by hand 
+# (B0 &lt;- mean(d$Group_size, na.rm = TRUE) - B1*mean(d$ECV, na.rm = TRUE)) 
+
+# Removing rows in ECV and Group_size that are not complete
+ECV_GS_noNA &lt;- d[complete.cases(d[ , c(&#39;ECV&#39;, &#39;Group_size&#39;)]), ]
+
+# Rename the variables 
+ECV &lt;- ECV_GS_noNA$ECV
+Group_size &lt;- ECV_GS_noNA$Group_size
+
+# Solve for Beta1 (slope) by hand
+(beta1 &lt;- cor(ECV, Group_size) * (sd(ECV)/sd(Group_size)))</code></pre>
+<pre><code>## [1] 2.463071</code></pre>
+<pre class="r"><code># Solve for Beta0 (intercept) by hand
+(beta0 &lt;- mean(ECV) - beta1 * mean(Group_size))</code></pre>
+<pre><code>## [1] 30.35652</code></pre>
 </div>
 <div id="step-4" class="section level3">
 <h3>Step 4</h3>
+<ul>
+<li>Confirm that you get the same results using the lm() function</li>
+</ul>
+<pre class="r"><code>(ECV_GS &lt;- lm(ECV ~ Group_size, data = d))</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = ECV ~ Group_size, data = d)
+## 
+## Coefficients:
+## (Intercept)   Group_size  
+##      30.357        2.463</code></pre>
 </div>
 <div id="step-5" class="section level3">
 <h3>Step 5</h3>

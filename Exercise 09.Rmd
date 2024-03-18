@@ -54,25 +54,36 @@ plot(data = d, ECV ~ Repro_lifespan, main = "Reproductive Lifespan", ylab = "Bra
 ```
 
 ### Step 3
--Derive by hand the ordinary least squares regression coefficients $\beta1$ and $\beta0$ for ECV as a function of social group size
+- Derive by hand the ordinary least squares regression coefficients $\beta1$ and $\beta0$ for ECV as a function of social group size
 
 ```{r, 3}
-# Renaming variables for easier pulling
-ECV <- d$ECV
-Group_size <- d$Group_size
+# I do not understand why this yields diff results; B1 = 2.718; B0 = -172.906
+# Solve for Beta1, slope, by hand
+# (B1 <- cor(d$ECV, d$Group_size, use = "complete.obs") * (sd(d$ECV, na.rm = TRUE)/sd(d$Group_size, na.rm = TRUE)))
 
-# Solve for Beta1 by hand
-(B1 <- cor(ECV, Group_size, use = "complete.obs") * (sd(ECV, na.rm = TRUE)/sd(Group_size, na.rm = TRUE)))
+# Solve for Beta0, intercept, by hand 
+# (B0 <- mean(d$Group_size, na.rm = TRUE) - B1*mean(d$ECV, na.rm = TRUE)) 
 
-# Solve for Beta0 by hand 
-(B0 <- mean(Group_size, na.rm = TRUE) - B1*mean(ECV, na.rm = TRUE)) 
+# Removing rows in ECV and Group_size that are not complete
+ECV_GS_noNA <- d[complete.cases(d[ , c('ECV', 'Group_size')]), ]
+
+# Rename the variables 
+ECV <- ECV_GS_noNA$ECV
+Group_size <- ECV_GS_noNA$Group_size
+
+# Solve for Beta1 (slope) by hand
+(beta1 <- cor(ECV, Group_size) * (sd(ECV)/sd(Group_size)))
+
+# Solve for Beta0 (intercept) by hand
+(beta0 <- mean(ECV) - beta1 * mean(Group_size))
+
 ```
 
 ### Step 4
-
+- Confirm that you get the same results using the lm() function 
 
 ```{r, 4}
-
+(ECV_GS <- lm(ECV ~ Group_size, data = d))
 ```
 
 
