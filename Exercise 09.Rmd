@@ -45,15 +45,27 @@ skim(d)
 - From this dataset, plot brain size (ECV) as a function of social group size (Group_size), longevity (Longevity), juvenile period length (Weaning), and reproductive lifespan (Repro_lifespan).
 
 ```{r, 2}
-#par(mfrow = c(2, 2))
-#plot(data = d, )
+
+par(mfrow = c(2, 2))
+plot(data = d, ECV ~ Group_size, main = "Social Group Size", ylab = "Brain Size (ECV)")
+plot(data = d, ECV ~ Longevity, main = "Longevity", ylab = "Brain Size (ECV)")
+plot(data = d, ECV ~ Weaning, main = "Juvenile Period Length", ylab = "Brain Size (ECV)")
+plot(data = d, ECV ~ Repro_lifespan, main = "Reproductive Lifespan", ylab = "Brain Size (ECV)")
 ```
 
 ### Step 3
--Derive by hand the ordinary least squares regression coefficients 
+-Derive by hand the ordinary least squares regression coefficients $\beta1$ and $\beta0$ for ECV as a function of social group size
 
 ```{r, 3}
+# Renaming variables for easier pulling
+ECV <- d$ECV
+Group_size <- d$Group_size
 
+# Solve for Beta1 by hand
+(B1 <- cor(ECV, Group_size, use = "complete.obs") * (sd(ECV, na.rm = TRUE)/sd(Group_size, na.rm = TRUE)))
+
+# Solve for Beta0 by hand 
+(B0 <- mean(Group_size, na.rm = TRUE) - B1*mean(ECV, na.rm = TRUE)) 
 ```
 
 ### Step 4
