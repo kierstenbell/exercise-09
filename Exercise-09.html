@@ -842,22 +842,28 @@ summary(ECV_GS_lm)</code></pre>
 <div id="step-7" class="section level3">
 <h3>Step 7</h3>
 <ul>
-<li>Use a permutation approach with 1000 permutations to generate a null
-sampling distribution for the slope coefficient. What is it that you
-need to permute? What is the p value associated with your original slope
-coefficient? You can use either the percentile method (i.e., using
+<li><p>Use a permutation approach with 1000 permutations to generate a
+null sampling distribution for the slope coefficient. What is it that
+you need to permute? What is the p value associated with your original
+slope coefficient? You can use either the percentile method (i.e., using
 quantiles from the actual permutation-based null sampling distribution)
 or a theory-based method (i.e., using the standard deviation of the
 permutation-based null sampling distribution as the estimate of the
 standard error, along with a normal or t distribution), or both, to
-calculate this p value.</li>
+calculate this p value.</p>
+<ul>
+<li>You are permuting the response variable (ECV).</li>
+<li>The p value is associated with magnitude of the t statistic against
+a t distribution with n-2 degrees of freedom.</li>
+</ul></li>
 </ul>
-<pre class="r"><code># define variables
+<pre class="r"><code># Taken directly from Simulation-Based Inference in Module 18
+# define variables
 alpha &lt;- 0.05
 confidence_level &lt;- 1 - alpha
 p_lower &lt;- alpha/2
 p_upper &lt;- 1 - (alpha/2)
-degrees_of_freedom &lt;- nrow(ECV_GS_noNA) - 2
+degrees_of_freedom &lt;- nrow(ECV_GS_noNA) - 1 - 1
 critical_value &lt;- qt(p_upper, df = degrees_of_freedom) # qt() is the student t distribution
 
 # original slope
@@ -871,7 +877,8 @@ original.slope</code></pre>
 ##   term       estimate std.error statistic  p.value conf.low conf.high
 ##   &lt;chr&gt;         &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
 ## 1 Group_size     2.46     0.351      7.02 7.26e-11     1.77      3.16</code></pre>
-<pre class="r"><code># null distribution 
+<pre class="r"><code># generate null distribution using the {infer} package
+# permutation randomly shuffles values of the response variable (ECV) under the null hypothesis that they are independent of the explanatory variable (Group_Size)
 permuted.slope &lt;- ECV_GS_noNA %&gt;%
   # specify model 
   specify(ECV ~ Group_size) %&gt;%
@@ -882,7 +889,21 @@ permuted.slope &lt;- ECV_GS_noNA %&gt;%
   # calculate the slope statistic
   calculate(stat = &quot;slope&quot;) # from {infer}
 
-# create confidence intervals
+# slopes from the first 5 permutations replicates
+head(permuted.slope)</code></pre>
+<pre><code>## Response: ECV (numeric)
+## Explanatory: Group_size (numeric)
+## Null Hypothesis: independence
+## # A tibble: 6 × 2
+##   replicate     stat
+##       &lt;int&gt;    &lt;dbl&gt;
+## 1         1 -0.178  
+## 2         2  0.00942
+## 3         3  0.464  
+## 4         4 -0.590  
+## 5         5  0.460  
+## 6         6 -0.0149</code></pre>
+<pre class="r"><code># create confidence intervals
 permuted.slope.summary &lt;- permuted.slope %&gt;%
   # summarize the mean, t distribution based CI, and quantile-based CI
   summarize(
@@ -890,10 +911,6 @@ permuted.slope.summary &lt;- permuted.slope %&gt;%
     estimate = mean(stat), # should be very close to ZERO
     # std error of stat
     std.error = sd(stat),
-    # calculate the CI based on the SE and t distribution
-    # could use 0 in place of estimate here...
-    lower = estimate - std.error * critical_value,
-    upper = estimate + std.error * critical_value,
     # calculate the CI based on the quantile (percentile) method
     perm.lower = quantile(stat, p_lower),
     perm.upper = quantile(stat, p_upper)
@@ -901,20 +918,67 @@ permuted.slope.summary &lt;- permuted.slope %&gt;%
 
 # show summary of permuted sampling distribution
 permuted.slope.summary</code></pre>
-<pre><code>## # A tibble: 1 × 6
-##   estimate std.error  lower upper perm.lower perm.upper
-##      &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
-## 1  0.00249     0.377 -0.743 0.748     -0.653      0.813</code></pre>
+<pre><code>## # A tibble: 1 × 4
+##   estimate std.error perm.lower perm.upper
+##      &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
+## 1  0.00210     0.421     -0.728      0.964</code></pre>
+<pre class="r"><code># get_ci() from {infer} can be used to return conf intervals
+get_ci(permuted.slope, level = 1 - alpha, type = &quot;percentile&quot;)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   lower_ci upper_ci
+##      &lt;dbl&gt;    &lt;dbl&gt;
+## 1   -0.728    0.964</code></pre>
 </div>
 <div id="step-8" class="section level3">
 <h3>Step 8</h3>
 <ul>
-<li>Use bootstrapping to generate a 95% CI for your estimate of the
+<li><p>Use bootstrapping to generate a 95% CI for your estimate of the
 slope coefficient using both the percentile method and the theory-based
 method (i.e., using on the standard deviation of the bootstrapped
 sampling distribution as an estimate of the standard error). Do these
-CIs suggest that your slope coefficient is different from zero?</li>
+CIs suggest that your slope coefficient is different from zero?</p>
+<ul>
+<li>These CI suggest that the slope coefficient is different from
+zero.</li>
+</ul></li>
 </ul>
+<pre class="r"><code># Bootstrappin&#39; 
+bootstrap.slope &lt;- ECV_GS_noNA %&gt;%
+ specify(formula =  ECV ~ Group_size) %&gt;%
+  hypothesize(null = &quot;independence&quot;)%&gt;%
+  generate(reps = 1000, type = &quot;bootstrap&quot;) %&gt;%
+  calculate(stat = &quot;slope&quot;)
+head(bootstrap.slope)</code></pre>
+<pre><code>## Response: ECV (numeric)
+## Explanatory: Group_size (numeric)
+## Null Hypothesis: independence
+## # A tibble: 6 × 2
+##   replicate  stat
+##       &lt;int&gt; &lt;dbl&gt;
+## 1         1  2.64
+## 2         2  1.75
+## 3         3  3.34
+## 4         4  2.29
+## 5         5  2.84
+## 6         6  2.48</code></pre>
+<pre class="r"><code>#confidence interval
+bootstrap.CI &lt;- bootstrap.slope %&gt;%
+  summarize(
+    lower = quantile(stat, 0.025),
+    upper = quantile(stat, 0.975)
+  )
+bootstrap.CI</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   lower upper
+##   &lt;dbl&gt; &lt;dbl&gt;
+## 1  1.53  3.26</code></pre>
+<pre class="r"><code>#p-value
+boot.p.value &lt;- get_p_value(bootstrap.slope, obs_stat = original.slope$estimate, direction = &quot;greater&quot;)
+boot.p.value</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   p_value
+##     &lt;dbl&gt;
+## 1   0.501</code></pre>
 </div>
 
 

@@ -160,13 +160,17 @@ glance(ECV_GS_lm)
 ### Step 7
 - Use a permutation approach with 1000 permutations to generate a null sampling distribution for the slope coefficient. What is it that you need to permute? What is the p value associated with your original slope coefficient? You can use either the percentile method (i.e., using quantiles from the actual permutation-based null sampling distribution) or a theory-based method (i.e., using the standard deviation of the permutation-based null sampling distribution as the estimate of the standard error, along with a normal or t distribution), or both, to calculate this p value.
 
+    - You are permuting the response variable (ECV).
+    - The p value is associated with magnitude of the t statistic against a t distribution with n-2 degrees of freedom.
+
 ```{r, 7}
+# Taken directly from Simulation-Based Inference in Module 18
 # define variables
 alpha <- 0.05
 confidence_level <- 1 - alpha
 p_lower <- alpha/2
 p_upper <- 1 - (alpha/2)
-degrees_of_freedom <- nrow(ECV_GS_noNA) - 2
+degrees_of_freedom <- nrow(ECV_GS_noNA) - 1 - 1
 critical_value <- qt(p_upper, df = degrees_of_freedom) # qt() is the student t distribution
 
 # original slope
@@ -177,7 +181,8 @@ original.slope <- lm(data = ECV_GS_noNA, ECV ~ Group_size) %>%
   filter(term == "Group_size")
 original.slope
 
-# null distribution 
+# generate null distribution using the {infer} package
+# permutation randomly shuffles values of the response variable (ECV) under the null hypothesis that they are independent of the explanatory variable (Group_Size)
 permuted.slope <- ECV_GS_noNA %>%
   # specify model 
   specify(ECV ~ Group_size) %>%
@@ -188,6 +193,9 @@ permuted.slope <- ECV_GS_noNA %>%
   # calculate the slope statistic
   calculate(stat = "slope") # from {infer}
 
+# slopes from the first 5 permutations replicates
+head(permuted.slope)
+
 # create confidence intervals
 permuted.slope.summary <- permuted.slope %>%
   # summarize the mean, t distribution based CI, and quantile-based CI
@@ -196,10 +204,6 @@ permuted.slope.summary <- permuted.slope %>%
     estimate = mean(stat), # should be very close to ZERO
     # std error of stat
     std.error = sd(stat),
-    # calculate the CI based on the SE and t distribution
-    # could use 0 in place of estimate here...
-    lower = estimate - std.error * critical_value,
-    upper = estimate + std.error * critical_value,
     # calculate the CI based on the quantile (percentile) method
     perm.lower = quantile(stat, p_lower),
     perm.upper = quantile(stat, p_upper)
@@ -207,12 +211,35 @@ permuted.slope.summary <- permuted.slope %>%
 
 # show summary of permuted sampling distribution
 permuted.slope.summary
+
+# get_ci() from {infer} can be used to return conf intervals
+get_ci(permuted.slope, level = 1 - alpha, type = "percentile")
 ```
 
 ### Step 8 
 - Use bootstrapping to generate a 95% CI for your estimate of the slope coefficient using both the percentile method and the theory-based method (i.e., using on the standard deviation of the bootstrapped sampling distribution as an estimate of the standard error). Do these CIs suggest that your slope coefficient is different from zero?
 
-```{r, 8}
+    - These CI suggest that the slope coefficient is different from zero.  
 
+```{r, 8}
+# Bootstrappin' 
+bootstrap.slope <- ECV_GS_noNA %>%
+ specify(formula =  ECV ~ Group_size) %>%
+  hypothesize(null = "independence")%>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "slope")
+head(bootstrap.slope)
+
+#confidence interval
+bootstrap.CI <- bootstrap.slope %>%
+  summarize(
+    lower = quantile(stat, 0.025),
+    upper = quantile(stat, 0.975)
+  )
+bootstrap.CI
+
+#p-value
+boot.p.value <- get_p_value(bootstrap.slope, obs_stat = original.slope$estimate, direction = "greater")
+boot.p.value
 
 ```
