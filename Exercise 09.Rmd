@@ -119,11 +119,20 @@ strep_lm <- tidy (strep_lm) %>%
 - For your first regression of ECV on social group size, calculate the standard error for the slope coefficient, the 95% CI, and the p value associated with this coefficient by hand. Also extract this same information from the results of running the lm() function.
 
 ```{r, 6}
-# Summary 
+# Summary from Step 4 
 summary <- tidy(ECV_GS_lm)
 
-# standard error 
-summary$calc.statistic <- (summary$estimate - 0)/summary$std.error
+# standard error of slope coefficint B1 = sqrt(MSE/SSX)
+# MSE = SSE / df_error
+# SSE = sum(residuals)^2
+# SSX = sum((x - mean)^2)
+
+SSE <- sum(ECV_GS_lm$residuals^2)
+df_error <- nrow(ECV_GS_noNA) - 1 - 1 
+MSE <- SSE/df_error 
+SSX <- sum((ECV_GS_lm$model$Group_size - mean(ECV_GS_lm$model$Group_size))^2) # x variation
+B1_SE <- sqrt(MSE/SSX)
+B1_SE # standard error for the slope coefficient
 
 # 95% confidence interval 
 alpha <- 0.05
@@ -136,13 +145,14 @@ colnames(CI) <- c(paste0(as.character(alpha/2 * 100), " %"), paste0(as.character
 CI
 
 # p value
+summary$calc.statistic <- (summary$estimate-0)/summary$std.error
+#(p <- pt(z, df = n - 1, lower.tail = FALSE))
 summary$calc.p.value <- 2 * pt(summary$calc.statistic, df = nrow(ECV_GS_noNA) - 2, lower.tail = FALSE)
 
 # print summary
 summary
 
-# Using lm() function
-# Completed in step 4
+# Using lm() function completed in step 4
 summary(ECV_GS_lm)
 glance(ECV_GS_lm)
 ```
